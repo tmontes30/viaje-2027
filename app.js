@@ -18,12 +18,30 @@
   };
 
   // ---------------------------------------------------------------- estado
+  const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const isTime = s => /^\d{2}:\d{2}$/.test(s);
+  function normFlight(f, def) {
+    f = f || {};
+    return {
+      from: f.from == null ? def.from : f.from,
+      to: f.to == null ? def.to : f.to,
+      date: isDate(f.date) ? f.date : def.date,
+      time: isTime(f.time) ? f.time : def.time,
+      hours: Math.max(1, Math.min(80, +f.hours || def.hours)),
+      price: f.price == null ? def.price : f.price,
+      notes: f.notes == null ? def.notes : f.notes
+    };
+  }
+
   function normalize(plan) {
+    const F = window.VUELOS_DEFAULT;
+    const pf = (plan && plan.flights) || {};
     const p = {
-      start: /^\d{4}-\d{2}-\d{2}$/.test(plan && plan.start) ? plan.start : window.PLAN_SUGERIDO.start,
       travelers: (plan && +plan.travelers) || 2,
+      flights: { out: normFlight(pf.out, F.out), back: normFlight(pf.back, F.back) },
       stops: []
     };
+    delete p.flights.back.date; // la fecha de vuelta sale del itinerario
     for (const s of (plan && plan.stops) || []) {
       if (!s || !D[s.id]) continue;
       p.stops.push({
@@ -42,8 +60,8 @@
 
   function compact(plan) {
     return {
-      start: plan.start,
       travelers: plan.travelers,
+      flights: plan.flights,
       stops: plan.stops.map(s => {
         const o = { id: s.id, nights: s.nights };
         for (const k of ["lodging", "link", "price", "extra", "notes"]) if (s[k] !== "" && s[k] != null) o[k] = s[k];
@@ -86,8 +104,32 @@
   const fmtShort = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", timeZone: "UTC" });
   const fmtD = dt => fmtShort.format(dt).replace(".", "");
 
+  // Horas "de reloj": se modelan como fechas UTC que representan la hora local de cada lugar.
+  const HOUR = 3600e3;
+  const TZ_DIFF = window.ZONAS.dest - window.ZONAS.home; // +12 h
+  const wall = (dateStr, time) => {
+    const [y, m, d] = dateStr.split("-").map(Number), [hh, mm] = time.split(":").map(Number);
+    return new Date(Date.UTC(y, m - 1, d, hh, mm));
+  };
+  const dayOf = dt => new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate()));
+  function outTimes() {
+    const o = state.flights.out;
+    const dep = wall(o.date, o.time);
+    return { dep, arr: new Date(dep.getTime() + (o.hours + TZ_DIFF) * HOUR) };
+  }
+  const arrivalDate = () => dayOf(outTimes().arr);
+  function backTimes(sched) {
+    const b = state.flights.back;
+    const end = sched.length ? sched[sched.length - 1].outD : arrivalDate();
+    const dep = wall(iso(end), b.time);
+    return { dep, arr: new Date(dep.getTime() + (b.hours - TZ_DIFF) * HOUR) };
+  }
+  const fmtLong = new Intl.DateTimeFormat("es-AR", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+  const fmtTime = dt => dt.toISOString().slice(11, 16);
+  const fmtDT = dt => fmtLong.format(dt).replace(/\./g, "") + " " + fmtTime(dt);
+
   function schedule() {
-    let dt = parseDate(state.start);
+    let dt = arrivalDate();
     return state.stops.map(s => {
       const inD = dt, outD = addDays(dt, s.nights);
       dt = outD;
@@ -234,7 +276,9 @@
     const w = [];
     const s = state.stops;
     if (!s.length) return [{ lvl: "ok", t: "Todavía no hay destinos. Agregá lugares desde la pestaña Explorar." }];
-    const year = parseDate(state.start).getUTCFullYear();
+    const year = arrivalDate().getUTCFullYear();
+    const arrH = outTimes().arr.getUTCHours();
+    if (arrH < 11) w.push({ lvl: "good", t: `Tip: llegan a ${asiaAirport("out")} a las ${fmtTime(outTimes().arr)}: conviene reservar el hotel desde la noche anterior (o pedir early check-in) para dormir apenas lleguen.` });
     const monsoon = Date.UTC(year, 5, 15);
     let seenID = false, orderWarned = false;
 
@@ -282,13 +326,15 @@
   // ---------------------------------------------------------------- render: panel
   function renderStats(sched) {
     const total = state.stops.reduce((a, b) => a + b.nights, 0);
+    const depDay = parseDate(state.flights.out.date);
+    const home = dayOf(backTimes(sched).arr);
     $("#statNights").textContent = total;
-    $("#statStops").textContent = state.stops.length;
-    $("#statEnd").textContent = sched.length ? fmtD(sched[sched.length - 1].outD) : "–";
-    $("#startDate").value = state.start;
+    $("#statDays").textContent = Math.round((home - depDay) / 864e5);
+    $("#statEnd").textContent = fmtD(home);
+    $("#departDate").value = state.flights.out.date;
 
     const today = new Date(); const t0 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
-    const days = Math.round((parseDate(state.start).getTime() - t0) / 864e5);
+    const days = Math.round((depDay.getTime() - t0) / 864e5);
     $("#countdown").textContent = days > 1 ? `faltan ${days} días` : days >= 0 ? "¡ya casi!" : "¡buen viaje!";
   }
 
@@ -319,8 +365,60 @@
     </div>`;
   }
 
+  // aeropuerto en Asia: el que escribieron, o el del país del primer/último destino
+  function asiaAirport(kind) {
+    const f = state.flights[kind];
+    const typed = kind === "out" ? f.to : f.from;
+    if (typed) return typed;
+    const s = kind === "out" ? state.stops[0] : state.stops[state.stops.length - 1];
+    return s ? (window.AEROPUERTOS[D[s.id].country] || D[s.id].name) : "—";
+  }
+
+  function flightHtml(kind, sched) {
+    const f = state.flights[kind];
+    const from = kind === "out" ? f.from : asiaAirport("back");
+    const to = kind === "out" ? asiaAirport("out") : f.to;
+    const { dep, arr } = kind === "out" ? outTimes() : backTimes(sched);
+    const open = openEdits.has("flight-" + kind);
+    const clock = (arr - dep) / HOUR; // diferencia en hora local
+    const why = kind === "out"
+      ? `El vuelo dura ${fmtH(f.hours)}, pero por la diferencia horaria (${window.ZONAS.destName}: +${TZ_DIFF} h respecto de ${window.ZONAS.homeName}) llegan ${fmtH(clock)} después según el reloj.`
+      : `El vuelo dura ${fmtH(f.hours)}, pero por la diferencia horaria llegan solo ${fmtH(clock)} después según el reloj: "ganan" ${TZ_DIFF} h.`;
+    const inp = (field, label, type, cls, extra) => `<label class="${cls || ""}">${label}
+      <input type="${type}" data-ffield="${field}" value="${esc(f[field])}" ${extra || ""}></label>`;
+    const autoPh = kind === "out" ? `placeholder="Automático: ${esc(asiaAirport("out"))}"` : `placeholder="Automático: ${esc(asiaAirport("back"))}"`;
+    return `<li class="flight-card" data-flight="${kind}">
+      <div class="stop-head">
+        <span class="num plane">${MODE_ICON.flight}</span>
+        <div class="stop-title">
+          <h3>${kind === "out" ? "Vuelo de ida" : "Vuelo de vuelta"}</h3>
+          <div class="dates">${esc(from)} → ${esc(to)}</div>
+        </div>
+        <button class="linkish" data-act="fedit">${open ? "Listo" : "Editar"}</button>
+      </div>
+      <div class="flight-times">
+        <div><small>Sale (hora local)</small><strong>${fmtDT(dep)}</strong></div>
+        <div><small>Llega (hora local)</small><strong>${fmtDT(arr)}</strong></div>
+      </div>
+      <div class="stop-meta">
+        <span class="pill">✈ ${fmtH(f.hours)} de viaje</span>
+        ${f.price !== "" ? `<span class="pill">US$ ${esc(f.price)} p/p</span>` : ""}
+        <span class="flight-why">${esc(why)}</span>
+      </div>
+      ${open ? `<div class="stop-edit">
+        ${inp("from", "Desde", "text", "", kind === "back" ? autoPh : "")}
+        ${inp("to", "Hasta", "text", "", kind === "out" ? autoPh : "")}
+        ${kind === "out" ? inp("date", "Fecha de salida", "date") : `<label>Fecha de salida<input type="text" value="${esc(fmtD(dep))} (último día del itinerario)" disabled></label>`}
+        ${inp("time", "Hora de salida", "time")}
+        ${inp("hours", "Duración total (h, con escalas)", "number", "", 'min="1" max="80" step="0.5"')}
+        ${inp("price", "Precio US$ por persona", "number", "", 'min="0" step="1"')}
+        <label class="full">Notas / aerolínea<textarea data-ffield="notes">${esc(f.notes)}</textarea></label>
+      </div>` : ""}
+    </li>`;
+  }
+
   function renderList(sched) {
-    const html = [];
+    const html = [flightHtml("out", sched)];
     state.stops.forEach((s, i) => {
       const d = D[s.id], { inD, outD } = sched[i];
       if (i > 0) html.push(legHtml(state.stops[i - 1].id, s.id));
@@ -353,6 +451,7 @@
         ${open ? editHtml(s) : ""}
       </li>`);
     });
+    html.push(flightHtml("back", sched));
     $("#stopList").innerHTML = html.join("");
   }
 
@@ -366,12 +465,15 @@
       if (!isNaN(e)) extras += e;
       if (i > 0) transport += getLeg(state.stops[i - 1].id, s.id).cost * state.travelers;
     });
+    const fp = k => { const v = parseFloat(state.flights[k].price); return isNaN(v) ? 0 : v; };
+    const flights = (fp("out") + fp("back")) * state.travelers;
     $("#budget").innerHTML = `<h3>Presupuesto</h3>
+      <div class="row"><span>Vuelos Santiago ⇄ Asia (×${state.travelers})</span><span>${money(flights)}</span></div>
       <div class="row"><span>Alojamiento <small>(${priced}/${state.stops.length} con precio)</small></span><span>${money(lodging)}</span></div>
       <div class="row"><span>Traslados entre destinos (est. ×${state.travelers})</span><span>${money(transport)}</span></div>
       <div class="row"><span>Extras / actividades</span><span>${money(extras)}</span></div>
-      <div class="row total"><span>Total</span><span>${money(lodging + transport + extras)}</span></div>
-      <p class="note">No incluye los vuelos desde/hacia casa. Tocá “Editar” en cada destino para cargar alojamiento y precios.</p>`;
+      <div class="row total"><span>Total</span><span>${money(flights + lodging + transport + extras)}</span></div>
+      <p class="note">Precios de vuelos y traslados estimados: editalos cuando tengan cotizaciones reales. Tocá “Editar” en cada destino para cargar alojamiento y precios.</p>`;
   }
 
   // ---------------------------------------------------------------- render: explorar / clima / tips
@@ -659,6 +761,12 @@
   // lista: clicks
   $("#stopList").addEventListener("click", e => {
     const btn = e.target.closest("[data-act]");
+    const fl = e.target.closest(".flight-card");
+    if (btn && fl && btn.dataset.act === "fedit") {
+      const k = "flight-" + fl.dataset.flight;
+      if (openEdits.has(k)) openEdits.delete(k); else openEdits.add(k);
+      return commit();
+    }
     const li = e.target.closest(".stop");
     if (!btn || !li) return;
     const u = li.dataset.uid;
@@ -679,7 +787,27 @@
     }
   });
   // lista: edición de campos
+  // vuelos: texto y precio se guardan al tipear; fecha/hora/duración recalculan todo al confirmar
+  const FLIGHT_SCHEDULE_FIELDS = ["date", "time", "hours"];
+  function setFlightField(el) {
+    const fl = el.closest(".flight-card");
+    const field = el.dataset.ffield;
+    const f = state.flights[fl.dataset.flight];
+    if (field === "date" && !isDate(el.value)) return false;
+    if (field === "time" && !isTime(el.value)) return false;
+    if (field === "hours") { const h = parseFloat(el.value); if (!(h >= 1 && h <= 80)) return false; f.hours = h; }
+    else f[field] = el.value;
+    return true;
+  }
+  $("#stopList").addEventListener("change", e => {
+    if (FLIGHT_SCHEDULE_FIELDS.includes(e.target.dataset.ffield) && setFlightField(e.target)) commit();
+  });
   $("#stopList").addEventListener("input", e => {
+    const ff = e.target.dataset.ffield;
+    if (ff) {
+      if (!FLIGHT_SCHEDULE_FIELDS.includes(ff) && setFlightField(e.target)) { save(); renderBudget(); }
+      return;
+    }
     const f = e.target.dataset.field;
     const li = e.target.closest(".stop");
     if (!f || !li) return;
@@ -693,7 +821,7 @@
   let dragUid = null;
   const list = $("#stopList");
   list.addEventListener("mousedown", e => {
-    const h = e.target.closest(".num");
+    const h = e.target.closest(".stop .num");
     if (h) h.closest(".stop").draggable = true;
   });
   list.addEventListener("dragstart", e => {
@@ -779,8 +907,8 @@
   $("#btnAdd").addEventListener("click", () => { filter = "all"; renderExplore(); showTab("explore"); });
 
   // barra superior
-  $("#startDate").addEventListener("change", e => {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)) { state.start = e.target.value; commit(); }
+  $("#departDate").addEventListener("change", e => {
+    if (isDate(e.target.value)) { state.flights.out.date = e.target.value; commit(); }
   });
   $("#btnOptimize").addEventListener("click", optimize);
 
