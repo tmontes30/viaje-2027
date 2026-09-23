@@ -386,9 +386,22 @@ window.CONEXION_INTERNACIONAL = {
   how: "Vuelo al hub (Manila) + vuelo directo Manila → Bali (~4 h) + traslado. Es un día entero de viaje: conviene salir temprano o dormir una noche en Manila."
 };
 
+// Husos horarios (UTC). Chile continental está en UTC-4 (horario de invierno) entre abril y septiembre.
+// Filipinas y Bali/Lombok están en UTC+8.
+window.ZONAS = { home: -4, homeName: "Chile", dest: 8, destName: "Filipinas y Bali" };
+
+// Vuelos internacionales por defecto (precios estimados por persona, en USD: editables).
+// Aeropuerto vacío = automático según el primer/último destino del itinerario.
+window.AEROPUERTOS = { Filipinas: "Manila (MNL)", Indonesia: "Bali (DPS)" };
+window.VUELOS_DEFAULT = {
+  out: { from: "Santiago (SCL)", to: "", date: "2027-05-15", time: "08:00", hours: 32, price: 900,
+         notes: "Rutas típicas: vía Sídney/Melbourne (LATAM + Philippine Airlines/Qantas), vía Auckland o vía EE.UU. (LAX + Philippine Airlines)." },
+  back: { from: "", to: "Santiago (SCL)", time: "10:00", hours: 32, price: 900,
+          notes: "Buscar como multidestino: Santiago → Manila y Bali → Santiago. Vía Sídney suele ser lo más corto." }
+};
+
 // Plan sugerido (el que queda cargado la primera vez)
 window.PLAN_SUGERIDO = {
-  start: "2027-05-03",
   travelers: 2,
   stops: [
     { id: "manila", nights: 1 },
@@ -403,9 +416,11 @@ window.PLAN_SUGERIDO = {
 };
 
 window.TIPS = [
-  { t: "Orden por clima", d: "Filipinas primero (El Nido en la primera mitad de mayo) e Indonesia después: en Bali, Lombok y las Gili, mayo y junio son estación seca, ideal." },
+  { t: "Orden por clima", d: "Filipinas primero (El Nido en mayo, antes del monzón de mediados de junio) e Indonesia después: en Bali, Lombok y las Gili, mayo y junio son estación seca, ideal." },
+  { t: "Vuelos desde Santiago", d: "Busquen un pasaje multidestino: Santiago → Manila de ida y Bali → Santiago de vuelta (así no tienen que volver a Manila). Las rutas más cortas suelen ir vía Sídney o Auckland; vía EE.UU. también existe pero es más larga." },
+  { t: "Diferencia horaria y jet lag", d: "Filipinas y Bali están 12 h adelante de Chile. A la ida \"pierden\" un día (salen sábado y llegan lunes de madrugada); a la vuelta lo recuperan (el vuelo dura ~32 h pero llegan ~20 h después según el reloj). El primer día en Manila, descansen." },
   { t: "Avisen que es luna de miel", d: "Cuando reserven, escríbanlo en la reserva: muchos hoteles en Bali y Palawan regalan upgrades, decoración con flores, cena o torta." },
-  { t: "Entrada a Filipinas", d: "Registro online obligatorio eTravel (gratis) dentro de las 72 h previas. Con pasaporte argentino se entra sin visa por 30 días (verificar antes de viajar)." },
+  { t: "Entrada a Filipinas", d: "Registro online obligatorio eTravel (gratis) dentro de las 72 h previas. Con pasaporte chileno o argentino, en general se entra sin visa por 30 días (verificar según su pasaporte antes de viajar)." },
   { t: "Entrada a Indonesia", d: "Visa on arrival / e-VOA (~IDR 500.000 p/p, se tramita online), declaración de aduana online (All Indonesia) y tasa turística de Bali (IDR 150.000 p/p). Verificar requisitos vigentes." },
   { t: "Fast boats", d: "Reservar con operadores conocidos y con buenas reseñas recientes; salir a la mañana (el mar está más calmo). Llevar las valijas medianas: se cargan a mano en la playa." },
   { t: "Vuelos internos", d: "AirSWIFT (El Nido) tiene límite de equipaje de 10 kg en bodega en tarifas básicas: comprar kilos extra por adelantado." },
@@ -413,5 +428,6 @@ window.TIPS = [
   { t: "Salud", d: "Seguro de viaje con cobertura de buceo si van a bucear. Tomar agua embotellada (evitar el 'Bali belly'). Protector solar reef-safe." },
   { t: "Enchufes", d: "Filipinas: tipo A/B (como EE.UU.). Indonesia: tipo C/F (europeo). Llevar adaptador universal." },
   { t: "Traslados en Bali", d: "Contratar chofer por día (~USD 40-50/día) es cómodo y barato; también Grab / Gojek (apps tipo Uber)." },
-  { t: "Feriados", d: "Idul Adha cae cerca del 16-17 de mayo de 2027: en Lombok puede haber algo más de movimiento local, pero no afecta al turismo." }
+  { t: "Feriados", d: "Idul Adha cae cerca del 16-17 de mayo de 2027: en Lombok puede haber algo más de movimiento local, pero no afecta al turismo." },
+  { t: "Llegada de madrugada", d: "Muchos vuelos llegan a Manila de madrugada: si llegan a Manila a las 4-5 am, reserven el hotel desde la noche anterior para poder dormir apenas llegan (o pidan early check-in)." }
 ];
