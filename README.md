@@ -2,6 +2,8 @@
 
 Planificador con mapa para el viaje de mayo/junio de 2027. Es un sitio estático: HTML, CSS y JS, sin build ni servidor.
 
+**Online:** https://cavedevz.com/viaje-2027/
+
 ## Archivos
 
 - `index.html`: estructura de la página.
