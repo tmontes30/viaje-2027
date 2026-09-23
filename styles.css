@@ -94,6 +94,8 @@ a { color: var(--accent); }
   border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
 }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand .logo { width: 40px; height: 40px; border-radius: 11px; box-shadow: 0 2px 8px rgba(10, 88, 87, .25); flex: none; }
 .brand h1 { font-size: 22px; }
 .brand h1 span { color: var(--coral); }
 .brand .sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
@@ -436,6 +438,7 @@ a { color: var(--accent); }
   body { height: auto; }
   .topbar { padding: 10px 16px; }
   .brand h1 { font-size: 19px; }
+  .brand .logo { width: 34px; height: 34px; border-radius: 9px; }
   .actions .btn { padding: 7px 11px; font-size: 13px; }
   .layout { display: flex; flex-direction: column-reverse; }
   .map-wrap { height: 48vh; min-height: 300px; }
