@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luna de miel 2027</title>
+  <meta name="description" content="Planificador de luna de miel: El Nido + Indonesia, mayo/junio 2027">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌴</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Luna de miel <span>2027</span></h1>
+      <p class="sub">El Nido + Indonesia · <span id="countdown"></span></p>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="btnOptimize" title="Reordenar para minimizar traslados">Optimizar recorrido</button>
+      <button class="btn" id="btnShare" title="Copiar un link con el plan">Compartir link</button>
+      <div class="menu">
+        <button class="btn icon" id="btnMenu" aria-label="Más opciones" aria-haspopup="true">⋯</button>
+        <div class="menu-list" id="menuList" hidden>
+          <button id="btnExport">Exportar plan (JSON)</button>
+          <button id="btnImport">Importar plan (JSON)</button>
+          <button id="btnTheme">Cambiar tema claro/oscuro</button>
+          <button id="btnReset" class="danger">Volver al plan sugerido</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel">
+      <div class="tripbar">
+        <label class="field">
+          <span>Llegada</span>
+          <input type="date" id="startDate">
+        </label>
+        <div class="stat"><strong id="statNights">0</strong><span>noches</span></div>
+        <div class="stat"><strong id="statEnd">–</strong><span>vuelta</span></div>
+        <div class="stat"><strong id="statStops">0</strong><span>destinos</span></div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="itin" class="active">Itinerario</button>
+        <button role="tab" data-tab="explore">Explorar</button>
+        <button role="tab" data-tab="clima">Clima</button>
+        <button role="tab" data-tab="tips">Tips</button>
+      </nav>
+
+      <section class="tab-body" id="tab-itin">
+        <div id="warnings"></div>
+        <ol id="stopList" class="stops"></ol>
+        <button class="btn add-btn" id="btnAdd">+ Agregar destino</button>
+        <div class="budget" id="budget"></div>
+      </section>
+
+      <section class="tab-body" id="tab-explore" hidden>
+        <p class="hint">Todos los lugares que tiene sentido considerar, con nuestra recomendación para un viaje de playa y relax. Tocá uno para verlo en el mapa.</p>
+        <div class="chips" id="exploreFilters"></div>
+        <div id="exploreList" class="cards"></div>
+      </section>
+
+      <section class="tab-body" id="tab-clima" hidden>
+        <p class="hint">Lluvia promedio aproximada por mes. Filipinas entra en el monzón en junio; Indonesia (Bali/Lombok) está en plena estación seca.</p>
+        <div id="climaTable"></div>
+      </section>
+
+      <section class="tab-body" id="tab-tips" hidden>
+        <div id="tipsList"></div>
+      </section>
+    </aside>
+
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div class="zoomers" id="zoomers">
+        <button data-zoom="all">Todo</button>
+        <button data-zoom="Filipinas">Filipinas</button>
+        <button data-zoom="Indonesia">Indonesia</button>
+      </div>
+      <div class="legend">
+        <span><i class="ln flight"></i>Vuelo</span>
+        <span><i class="ln boat"></i>Barco</span>
+        <span><i class="ln car"></i>Auto</span>
+        <span><i class="dot"></i>Otros destinos</span>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="detail" class="detail"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input type="file" id="importFile" accept="application/json" hidden>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+  <script src="data/destinos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
